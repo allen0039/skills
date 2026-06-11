@@ -186,7 +186,7 @@ def check_docker() -> Dict:
     """检查 Docker 容器状态"""
     info = {"status": "✅", "items": []}
 
-    ok, output = run_cmd("docker ps --format '{{.Names}}\t{{.Status}}' 2>/dev/null")
+    ok, output = run_cmd("docker ps --format '{{.Names}}\\t{{.Status}}' 2>/dev/null")
     if ok and output:
         lines = [l.strip() for l in output.strip().split("\n") if l.strip()]
         if lines:
@@ -203,7 +203,18 @@ def check_docker() -> Dict:
                         status_short = "unhealthy"
                     else:
                         status_short = "running" if "Up" in status else "stopped"
-                    info["items"].append((name, f"{flag} {status_short}"))
+                    # 提取运行时间（从 Status 中提取 "Up X days/hours/minutes"）
+                    runtime = ""
+                    up_match = re.search(r'Up\s+(.+?)(?:\s+\(|$)', status)
+                    if up_match:
+                        runtime = up_match.group(1).strip()
+                    # 提取重启次数
+                    restart_match = re.search(r'\((\d+)\s+restart', status)
+                    restarts = restart_match.group(1) if restart_match else "0"
+                    # 格式化输出
+                    runtime_str = f" (运行 {runtime})" if runtime else ""
+                    restart_str = f" | 重启 {restarts} 次" if int(restarts) > 0 else ""
+                    info["items"].append((name, f"{flag} {status_short}{runtime_str}{restart_str}"))
         else:
             info["items"].append(("Docker", "无运行中的容器"))
     else:
